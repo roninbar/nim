@@ -32,6 +32,11 @@ getMove = do
   m <- readLn
   return (k - 1, m)
 
+winningMove :: State -> Move
+winningMove s = (k, s !! k - (s !! k `xor` m)) where
+  m      = foldl xor 0 s
+  Just k = findIndex (\n -> n `xor` m < n) s
+  
 validMove :: Move -> State -> Bool
 validMove (k, m) s = 0 <= k && k < length s -- && m <= s !! k
 
@@ -41,14 +46,6 @@ applyMove (k, m) s = take k s ++ [max 0 (s !! k - m)] ++ drop (k + 1) s
 
 finished :: State -> Bool
 finished = all (== 0)
-
-nimSum :: State -> Int
-nimSum = foldl xor 0
-
-winningMove :: State -> Move
-winningMove s = (k, s !! k - (s !! k `xor` m)) where
-  m      = nimSum s
-  Just k = findIndex (\n -> n `xor` m < n) s
 
 playComputer :: Player -> State -> IO ()
 playComputer p s = do
