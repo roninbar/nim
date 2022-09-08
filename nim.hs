@@ -69,7 +69,7 @@ playComputer p s = do
   if finished s'
     then do
       putState s'
-      printf "** The winner is %s! **\BEL\n" (show p)
+      printf "** The winner is %s! **\BEL\n" (show (opponent p))
     else playHuman (opponent p) s'
 
 playHuman :: Player -> State -> IO ()
