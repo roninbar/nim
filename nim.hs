@@ -2,10 +2,11 @@
   ( main
   ) where
 
-import           Control.Monad (zipWithM_)
-import           Data.Bits     (xor)
-import           Data.List     (elemIndex, findIndex)
-import           Text.Printf   (printf)
+import           Control.Applicative (Alternative ((<|>)))
+import           Control.Monad       (zipWithM_)
+import           Data.Bits           (xor)
+import           Data.List           (elemIndex, findIndex)
+import           Text.Printf         (printf)
 
 type Board = [Int]
 
@@ -42,12 +43,14 @@ bestMove b = case count (> 1) b of
   0 -> let Just k = elemIndex 1 b in (k, 1)
   1 ->
     let Just k = findIndex (> 1) b
-    in  (k, if odd (count (== 1) b) then b !! k else b !! k - 1)
+     in (k, if odd (count (== 1) b) then b !! k else b !! k - 1)
   _ ->
     let m      = nimSum b
-        Just k = findIndex (\n -> n `xor` m < n) b
-    in  (k, b !! k - (b !! k `xor` m))
+        Just k = findIndex (\n -> n `xor` m < n) b <|> findIndex (> 0) b
+     in (k, b !! k - (b !! k `xor` m) |+| 1)
   where count pred xs = sum [ if pred x then 1 else 0 | x <- xs ]
+        (|+|) a b = if a > 0 then a else b
+        infix 0 |+|
 
 validMove :: Move -> Board -> Bool
 validMove (k, m) b = 0 <= k && k < length b && m <= b !! k
@@ -82,11 +85,11 @@ playHuman p b = do
       if finished s'
         then do
           putBoard s'
-          printf "** The winner is %s **\BEL\n" (show (opponent p))
+          printf "** The winner is %s! **\BEL\n" (show (opponent p))
         else playComputer (opponent p) s'
     else do
       putStrLn "** Invalid move. **\BEL"
       playHuman p b
 
 main :: IO ()
-main = playComputer Alice [5, 4 .. 1]
+main = playHuman Bob [5, 4 .. 1]
