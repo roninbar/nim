@@ -7,7 +7,7 @@ import           Data.Bits     (xor)
 import           Data.List     (elemIndex, findIndex)
 import           Text.Printf   (printf)
 
-type State = [Int]
+type Board = [Int]
 
 type Move = (Int, Int)
 
@@ -17,13 +17,13 @@ opponent :: Player -> Player
 opponent Alice = Bob
 opponent Bob   = Alice
 
-nimSum :: State -> Int
+nimSum :: Board -> Int
 nimSum = foldl xor 0
 
-putState :: State -> IO ()
-putState s = do
-  zipWithM_ fmt [1 ..] s
-  printf "\x3A3 : %04b\n" (nimSum s) -- '\x3A3' = uppercase sigma
+putBoard :: Board -> IO ()
+putBoard b = do
+  zipWithM_ fmt [1 ..] b
+  printf "\x3A3 : %04b\n" (nimSum b) -- '\x3A3' = uppercase sigma
 
  where
   fmt :: Int -> Int -> IO ()
@@ -37,57 +37,56 @@ getMove = do
   m <- readLn
   return (k - 1, m)
 
-bestMove :: State -> Move
-bestMove s = case count (> 1) s of
-  0 -> let Just k = elemIndex 1 s in (k, 1)
+bestMove :: Board -> Move
+bestMove b = case count (> 1) b of
+  0 -> let Just k = elemIndex 1 b in (k, 1)
   1 ->
-    let Just k = findIndex (> 1) s
-    in  (k, if odd (count (== 1) s) then s !! k else s !! k - 1)
+    let Just k = findIndex (> 1) b
+    in  (k, if odd (count (== 1) b) then b !! k else b !! k - 1)
   _ ->
-    let m      = nimSum s
-        Just k = findIndex (\n -> n `xor` m < n) s
-    in  (k, s !! k - (s !! k `xor` m))
+    let m      = nimSum b
+        Just k = findIndex (\n -> n `xor` m < n) b
+    in  (k, b !! k - (b !! k `xor` m))
   where count pred xs = sum [ if pred x then 1 else 0 | x <- xs ]
 
-validMove :: Move -> State -> Bool
-validMove (k, m) s = 0 <= k && k < length s && m <= s !! k
+validMove :: Move -> Board -> Bool
+validMove (k, m) b = 0 <= k && k < length b && m <= b !! k
 
-applyMove :: Move -> State -> State
-applyMove (k, m) s = take k s ++ [max 0 (s !! k - m)] ++ drop (k + 1) s
+applyMove :: Move -> Board -> Board
+applyMove (k, m) b = take k b ++ [max 0 (b !! k - m)] ++ drop (k + 1) b
 -- applyMove (k, m) s = foldMap ($ s) [take k, \s -> [s !! k - m], drop (k + 1)]
 
-
-finished :: State -> Bool
+finished :: Board -> Bool
 finished = all (== 0)
 
-playComputer :: Player -> State -> IO ()
-playComputer p s = do
-  putState s
-  let (k, m) = bestMove s
+playComputer :: Player -> Board -> IO ()
+playComputer p b = do
+  putBoard b
+  let (k, m) = bestMove b
   printf "%s removes %d from row %d.\n" (show p) m (k + 1)
-  let s' = applyMove (k, m) s
+  let s' = applyMove (k, m) b
   if finished s'
     then do
-      putState s'
+      putBoard s'
       printf "** The winner is %s! **\BEL\n" (show (opponent p))
     else playHuman (opponent p) s'
 
-playHuman :: Player -> State -> IO ()
-playHuman p s = do
-  putState s
+playHuman :: Player -> Board -> IO ()
+playHuman p b = do
+  putBoard b
   printf "%s, enter your move:\n" (show p)
   (k, m) <- getMove
-  if validMove (k, m) s
+  if validMove (k, m) b
     then do
-      let s' = applyMove (k, m) s
+      let s' = applyMove (k, m) b
       if finished s'
         then do
-          putState s'
+          putBoard s'
           printf "** The winner is %s **\BEL\n" (show (opponent p))
         else playComputer (opponent p) s'
     else do
       putStrLn "** Invalid move. **\BEL"
-      playHuman p s
+      playHuman p b
 
 main :: IO ()
 main = playComputer Alice [5, 4 .. 1]
