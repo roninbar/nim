@@ -17,11 +17,16 @@ opponent :: Player -> Player
 opponent Alice = Bob
 opponent Bob   = Alice
 
+nimSum :: State -> Int
+nimSum = foldl xor 0
+
 putState :: State -> IO ()
-putState = zipWithM_ fmt [1 ..]
+putState s = do
+  zipWithM_ fmt [1 ..] s
+  printf "\x3A3 : %04b\n" (nimSum s) -- '\x3A3' = uppercase sigma
  where
   fmt :: Int -> Int -> IO ()
-  fmt k n = printf "%d : %s\n" k (replicate n '*')
+  fmt k n = printf "%d : %04b %s\n" k n (replicate n '*')
   -- fmt = flip (flip (printf "%d : %s") . flip replicate '*')
 
 getMove :: IO Move
