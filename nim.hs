@@ -43,13 +43,15 @@ bestMove b = case count (> 1) b of
   0 -> let Just k = elemIndex 1 b in (k, 1)
   1 ->
     let Just k = findIndex (> 1) b
-     in (k, if odd (count (== 1) b) then b !! k else b !! k - 1)
+        n      = b !! k
+     in (k, if odd (count (== 1) b) then n else n - 1)
   _ ->
     let m      = nimSum b
-        Just k = findIndex (\n -> n `xor` m < n) b <|> findIndex (> 0) b
-     in (k, b !! k - (b !! k `xor` m) |+| 1)
+        Just k = findIndex (\n -> n > (n `xor` m)) b <|> findIndex (> 0) b
+        n      = b !! k
+     in (k, n - (n `xor` m) |+| 1)
   where count pred xs = sum [ if pred x then 1 else 0 | x <- xs ]
-        (|+|) a b = if a > 0 then a else b
+        a |+| b = if a > 0 then a else b
         infix 0 |+|
 
 validMove :: Move -> Board -> Bool
