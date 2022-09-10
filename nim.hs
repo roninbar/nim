@@ -28,7 +28,7 @@ putBoard b = do
 
  where
   fmt :: Int -> Int -> IO ()
-  fmt k n = printf "%d : %04b %s\n" k n (replicate n '*')
+  fmt k n = printf "%d : %04b %s\n" k n (concat (replicate n "* "))
 
 getMove :: IO Move
 getMove = do
