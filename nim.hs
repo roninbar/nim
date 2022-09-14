@@ -69,12 +69,12 @@ playComputer p b = do
   putBoard b
   let (k, m) = bestMove b
   printf "%s removes %d from row %d.\n" (show p) m (k + 1)
-  let s' = applyMove (k, m) b
-  if finished s'
+  let b' = applyMove (k, m) b
+  if finished b'
     then do
-      putBoard s'
+      putBoard b'
       printf "** The winner is %s! **\BEL\n" (show (opponent p))
-    else playHuman (opponent p) s'
+    else playHuman (opponent p) b'
 
 playHuman :: Player -> Board -> IO ()
 playHuman p b = do
@@ -83,12 +83,12 @@ playHuman p b = do
   (k, m) <- getMove
   if validMove (k, m) b
     then do
-      let s' = applyMove (k, m) b
-      if finished s'
+      let b' = applyMove (k, m) b
+      if finished b'
         then do
-          putBoard s'
+          putBoard b'
           printf "** The winner is %s! **\BEL\n" (show (opponent p))
-        else playComputer (opponent p) s'
+        else playComputer (opponent p) b'
     else do
       putStrLn "** Invalid move. **\BEL"
       playHuman p b
