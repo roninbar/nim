@@ -25,18 +25,21 @@ putBoard :: Board -> IO ()
 putBoard b = do
   zipWithM_ fmt [1 ..] b
   printf "\x3A3 : %04b\n" (nimSum b) -- '\x3A3' = uppercase sigma
-
  where
   fmt :: Int -> Int -> IO ()
   fmt k n = printf "%d : %04b %s\n" k n (concat (replicate n "* "))
 
-getMove :: IO Move
-getMove = do
+getMove :: Board -> IO Move
+getMove b = do
   putStr "Row? "
   k <- readLn
   putStr "How many? "
   m <- readLn
-  return (k - 1, m)
+  if validMove b (k - 1, m)
+    then return (k - 1, m)
+    else do
+      putStrLn "** Invalid move. **\BEL"
+      getMove b
 
 bestMove :: Board -> Move
 bestMove b = case count (> 1) b of
@@ -44,18 +47,20 @@ bestMove b = case count (> 1) b of
   1 ->
     let Just k = findIndex (> 1) b
         n      = b !! k
-     in (k, if odd (count (== 1) b) then n else n - 1)
+    in  (k, if odd (count (== 1) b) then n else n - 1)
   _ ->
     let m      = nimSum b
         Just k = findIndex (\n -> n > (n `xor` m)) b <|> findIndex (> 0) b
         n      = b !! k
-     in (k, n - (n `xor` m) |+| 1)
+    in  (k, n - (n `xor` m) |+| 1)
   where count pred xs = sum [ if pred x then 1 else 0 | x <- xs ]
-        a |+| b = if a > 0 then a else b
-        infix 0 |+|
 
-validMove :: Move -> Board -> Bool
-validMove (k, m) b = 0 <= k && k < length b && m <= b !! k
+infix 0 |+|
+(|+|) :: (Ord a, Num a) => a -> a -> a
+a |+| b = if a > 0 then a else b
+
+validMove :: Board -> Move -> Bool
+validMove b (k, m) = 0 <= k && k < length b && 0 < m && m <= b !! k
 
 applyMove :: Move -> Board -> Board
 applyMove (k, m) b = take k b ++ [max 0 (b !! k - m)] ++ drop (k + 1) b
@@ -69,29 +74,32 @@ playComputer p b = do
   putBoard b
   let (k, m) = bestMove b
   printf "%s removes %d from row %d.\n" (show p) m (k + 1)
-  let b' = applyMove (k, m) b
-  if finished b'
-    then do
-      putBoard b'
-      printf "** The winner is %s! **\BEL\n" (show (opponent p))
-    else playHuman (opponent p) b'
+  play (k, m) b
+ where
+  play :: Move -> Board -> IO ()
+  play v b = do
+    let b' = applyMove v b
+    if finished b'
+      then do
+        putBoard b'
+        printf "** The winner is %s! **\BEL\n" (show (opponent p))
+      else playHuman (opponent p) b'
 
 playHuman :: Player -> Board -> IO ()
 playHuman p b = do
   putBoard b
   printf "%s, enter your move:\n" (show p)
-  (k, m) <- getMove
-  if validMove (k, m) b
-    then do
-      let b' = applyMove (k, m) b
-      if finished b'
-        then do
-          putBoard b'
-          printf "** The winner is %s! **\BEL\n" (show (opponent p))
-        else playComputer (opponent p) b'
-    else do
-      putStrLn "** Invalid move. **\BEL"
-      playHuman p b
+  v <- getMove b
+  play v b
+ where
+  play :: Move -> Board -> IO ()
+  play v b = do
+    let b' = applyMove v b
+    if finished b'
+      then do
+        putBoard b'
+        printf "** The winner is %s! **\BEL\n" (show (opponent p))
+      else playComputer (opponent p) b'
 
 main :: IO ()
 main = playHuman Bob [5, 4 .. 1]
