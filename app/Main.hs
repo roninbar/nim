@@ -7,16 +7,14 @@ module Main
   ( main
   ) where
 
-import           Control.Applicative    (Alternative ((<|>)))
-import           Control.Monad          (when, zipWithM_)
-import           Control.Monad.State    (MonadIO (liftIO),
-                                         MonadState (get, put),
-                                         MonadTrans (lift), State,
-                                         StateT (runStateT), gets, void,
-                                         zipWithM_)
-import           Data.Bits              (xor)
-import           Data.List              (elemIndex, findIndex)
-import           Text.Printf            (printf)
+import           Control.Applicative (Alternative ((<|>)))
+import           Control.Monad       (zipWithM_)
+import           Control.Monad.State (MonadIO (liftIO), MonadState (get, put),
+                                      MonadTrans (lift), State,
+                                      StateT (runStateT), gets, void, zipWithM_)
+import           Data.Bits           (xor)
+import           Data.List           (elemIndex, findIndex)
+import           Text.Printf         (printf)
 
 type Board = [Int]
 
@@ -107,42 +105,37 @@ applyMove (k, m) = do
   put $ take k b ++ [max 0 (b !! k - m)] ++ drop (k + 1) b
 
 -- applyMove (k, m) s = foldMap ($ s) [take k, \s -> [s !! k - m], drop (k + 1)]
-
 finished :: MonadState Board m => m Bool
 finished = gets (all (== 0))
+
+play ::
+     (MonadIO m, MonadState Board m)
+  => (Player -> m ())
+  -> Player
+  -> Move
+  -> m ()
+play next p v = do
+  applyMove v
+  f <- finished
+  if f
+    then do
+      putBoard
+      liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p)
+    else next (opponent p)
 
 playComputer :: (MonadState Board m, MonadIO m) => Player -> m ()
 playComputer p = do
   putBoard
   (k, m) <- gets bestMove
   liftIO $ printf "%s removes %d from row %d.\n" (show p) m (k + 1)
-  play (k, m)
-  where
-    play :: (MonadState Board m, MonadIO m) => Move -> m ()
-    play v = do
-      applyMove v
-      f <- finished
-      if f
-        then do
-          putBoard
-          liftIO $ printf "** The winner is %s! **\BEL\n" (show (opponent p))
-        else playHuman (opponent p)
+  play playHuman p (k, m)
 
 playHuman :: (MonadState Board m, MonadIO m) => Player -> m ()
 playHuman p = do
   putBoard
   liftIO $ printf "%s, enter your move:\n" (show p)
-  getMove >>= play
-  where
-    play :: (MonadState Board m, MonadIO m) => Move -> m ()
-    play v = do
-      applyMove v
-      f <- finished
-      if f
-        then do
-          putBoard
-          liftIO $ printf "** The winner is %s! **\BEL\n" (show (opponent p))
-        else playComputer (opponent p)
+  (k, m) <- getMove
+  play playComputer p (k, m)
 
 main :: IO ()
 main = void $ runStateT (playHuman Bob) [5,4 .. 1]
