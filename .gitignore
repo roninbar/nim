@@ -1,4 +1,6 @@
-.vscode/tasks.json
+.vscode
+dist-newstyle
+.cabal-fmt-*
 **/*.exe
 **/*.o
 **/*.hi
