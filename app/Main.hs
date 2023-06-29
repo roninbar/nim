@@ -1,52 +1,61 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 {-# HLINT ignore "Redundant pure" #-}
 module Main
   ( main
   ) where
 
-import           Control.Applicative (Alternative ((<|>)))
-import           Control.Monad       (zipWithM_)
-import           Control.Monad.State (MonadIO (liftIO), MonadState (get, put),
-                                      MonadTrans (lift), State,
-                                      StateT (runStateT), gets, void, zipWithM_)
-import           Data.Bits           (xor)
-import           Data.List           (elemIndex, findIndex)
-import           Text.Printf         (printf)
+import           Control.Applicative       (Alternative ((<|>)))
+import           Control.Monad             (void, zipWithM_)
+import           Control.Monad.Accum       (MonadAccum (accum, add, look),
+                                            looks)
+import           Control.Monad.IO.Class    (MonadIO (liftIO))
+import           Control.Monad.Trans.Accum (runAccumT)
+import           Data.Bits                 (xor)
+import           Data.List                 (elemIndex, findIndex)
+import           Text.Printf               (printf)
 
-type Board = [Int]
+newtype Board =
+  Board [Int]
+
+instance Semigroup Board where
+  (<>) :: Board -> Board -> Board
+  (<>) (Board xs) (Board ys) = Board (zipWith (+) xs ys)
+
+instance Monoid Board where
+  mempty :: Board
+  mempty = Board (repeat 0)
 
 type Move = (Int, Int)
 
-type S = State Board
-
-type ST = StateT Board
-
 data Player
-  = Alice
-  | Bob
+  = Computer
+  | Human
   deriving (Show)
 
 opponent :: Player -> Player
-opponent Alice = Bob
-opponent Bob   = Alice
+opponent Computer = Human
+opponent Human    = Computer
 
 nimSum :: Board -> Int
-nimSum = foldl xor 0
+nimSum (Board rows) = foldl xor 0 rows
 
-putBoard :: (MonadState Board m, MonadIO m) => m ()
+putBoard :: (MonadAccum Board m, MonadIO m) => m ()
 putBoard = do
-  b <- get
-  liftIO $ zipWithM_ fmt [1 ..] b
-  s <- gets nimSum
+  Board rows <- look
+  liftIO $ zipWithM_ fmt [1 ..] rows
+  s <- looks nimSum
   liftIO $ printf "\x3A3 : %04b\n" s -- '\x3A3' = uppercase sigma
   where
     fmt :: Int -> Int -> IO ()
     fmt k n = printf "%d : %04b %s\n" k n (concat (replicate n "* "))
 
-getMove :: (MonadState Board m, MonadIO m) => m Move
+getMove :: (MonadAccum Board m, MonadIO m) => m Move
 getMove = do
   liftIO $ putStr "Row? "
   k <- liftIO readLn
@@ -60,22 +69,23 @@ getMove = do
       getMove
 
 bestMove :: Board -> Move
-bestMove b =
-  case count (> 1) b of
+bestMove (Board rows) =
+  case count (> 1) rows of
     0 ->
-      let Just k = elemIndex 1 b
+      let Just k = elemIndex 1 rows
        in (k, 1)
     1 ->
-      let Just k = findIndex (> 1) b
-          n = b !! k
+      let Just k = findIndex (> 1) rows
+          n = rows !! k
        in ( k
-          , if odd (count (== 1) b)
+          , if odd (count (== 1) rows)
               then n
               else n - 1)
     _ ->
-      let m = nimSum b
-          Just k = findIndex (\n -> n > (n `xor` m)) b <|> findIndex (> 0) b
-          n = b !! k
+      let m = nimSum (Board rows)
+          Just k =
+            findIndex (\n -> n > (n `xor` m)) rows <|> findIndex (> 0) rows
+          n = rows !! k
        in (k, n - (n `xor` m) |+| 1)
   where
     count pred xs =
@@ -94,22 +104,21 @@ a |+| b =
     then a
     else b
 
-validMove :: MonadState Board m => Move -> m Bool
+validMove :: MonadAccum Board m => Move -> m Bool
 validMove (k, m) = do
-  b <- get
-  return $ 0 <= k && k < length b && 0 < m && m <= b !! k
+  Board rows <- look
+  return $ 0 <= k && k < length rows && 0 < m && m <= rows !! k
 
-applyMove :: MonadState Board m => Move -> m ()
-applyMove (k, m) = do
-  b <- get
-  put $ take k b ++ [max 0 (b !! k - m)] ++ drop (k + 1) b
+applyMove :: (MonadAccum Board m, MonadAccum Board m) => Move -> m ()
+applyMove (k, m) = add $ Board $ replicate k 0 ++ [-m] ++ repeat 0
 
+--   add
 -- applyMove (k, m) s = foldMap ($ s) [take k, \s -> [s !! k - m], drop (k + 1)]
-finished :: MonadState Board m => m Bool
-finished = gets (all (== 0))
+finished :: MonadAccum Board m => m Bool
+finished = looks (\(Board rows) -> all (== 0) rows)
 
 play ::
-     (MonadIO m, MonadState Board m)
+     (MonadIO m, MonadAccum Board m, MonadAccum Board m)
   => Player
   -> Move
   -> (Player -> m ())
@@ -121,21 +130,21 @@ play p mv next = do
     then do
       putBoard
       liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p)
-    else next (opponent p)
+    else next
 
-playComputer :: (MonadState Board m, MonadIO m) => Player -> m ()
-playComputer p = do
+playComputer :: (MonadIO m, MonadAccum Board m) => m ()
+playComputer = do
   putBoard
   mv@(k, m) <- gets bestMove
-  liftIO $ printf "%s removes %d from row %d.\n" (show p) m (k + 1)
+  liftIO $ printf "Computer removes %d from row %d.\n" m (k + 1)
   play p mv playHuman
 
-playHuman :: (MonadState Board m, MonadIO m) => Player -> m ()
-playHuman p = do
+playHuman :: (MonadIO m, MonadAccum Board m) => m ()
+playHuman = do
   putBoard
-  liftIO $ printf "%s, enter your move:\n" (show p)
+  liftIO $ printf "Human, enter your move:\n"
   mv <- getMove
   play p mv playComputer
 
 main :: IO ()
-main = void $ runStateT (playHuman Bob) [5,4 .. 1]
+main = void $ accum playHuman $ Board [5,4 .. 1]
