@@ -13,10 +13,11 @@ module Main
 import           Control.Applicative    (Alternative ((<|>)))
 import           Control.Monad          (void, zipWithM_)
 import           Control.Monad.Accum    (MonadAccum (look, add), looks)
+import           Control.Monad.Extra    (ifM)
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           Data.Bits              (xor)
 import           Data.List              (elemIndex, findIndex)
-import           Main.Trans.Accum       (AccumT (AccumT), execAccumT, runAccumT)
+import           Main.Trans.Accum       (AccumT (AccumT), runAccumT)
 import           Text.Printf            (printf)
 
 newtype Board =
@@ -60,15 +61,16 @@ getMove = do
   k <- liftIO readLn
   liftIO $ putStr "How many? "
   m <- liftIO readLn
-  valid <- validMove (k - 1, m)
-  if valid
-    then return (k - 1, m)
-    else do
-      liftIO $ putStrLn "** Invalid move. **\BEL"
-      getMove
+  ifM
+    (validMove (k - 1, m))
+  -- then
+    (return (k - 1, m))
+  -- else
+    (do liftIO $ putStrLn "** Invalid move. **\BEL"
+        getMove)
 
 bestMove :: Board -> Move
-bestMove (Board rows) =
+bestMove b@(Board rows) =
   case count (> 1) rows of
     0 ->
       let Just k = elemIndex 1 rows
@@ -81,7 +83,7 @@ bestMove (Board rows) =
               then n
               else n - 1)
     _ ->
-      let m = nimSum (Board rows)
+      let m = nimSum b
           Just k =
             findIndex (\n -> n > (n `xor` m)) rows <|> findIndex (> 0) rows
           n = rows !! k
@@ -122,21 +124,22 @@ play ::
   -> m ()
 play p mv next = do
   applyMove mv
-  f <- finished
-  if f
-    then do
-      putBoard
-      liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p)
-    else next
+  ifM
+    finished
+  -- then
+    (do putBoard
+        liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p))
+  -- else
+    next
 
 playComputer :: (MonadAccum Board m, MonadIO m) => m ()
 playComputer = do
   putBoard
-  mv@(k, m) <- gets bestMove
+  mv@(k, m) <- looks bestMove
   liftIO $ printf "Computer removes %d from row %d.\n" m (k + 1)
   play p mv playHuman
 
-playHuman :: (MonadAccum Board m, MonadIO m) => m ()
+playHuman :: (MonadIO m, MonadAccum Board m) => m ()
 playHuman = do
   putBoard
   liftIO $ printf "Human, enter your move:\n"
@@ -144,4 +147,4 @@ playHuman = do
   play p mv playComputer
 
 main :: IO ()
-main = void $ execAccumT playHuman $ Board [5, 4 .. 1]
+main = void $ runAccumT playHuman $ Board [5,4 .. 1]
