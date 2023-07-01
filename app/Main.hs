@@ -52,8 +52,8 @@ getMove = do
   k <- liftIO readLn
   liftIO $ putStr "How many? "
   m <- liftIO readLn
-  v <- validMove (k - 1, m)
-  if v
+  valid <- validMove (k - 1, m)
+  if valid
     then return (k - 1, m)
     else do
       liftIO $ putStrLn "** Invalid move. **\BEL"
@@ -110,12 +110,12 @@ finished = gets (all (== 0))
 
 play ::
      (MonadIO m, MonadState Board m)
-  => (Player -> m ())
-  -> Player
+  => Player
   -> Move
+  -> (Player -> m ())
   -> m ()
-play next p v = do
-  applyMove v
+play p mv next = do
+  applyMove mv
   f <- finished
   if f
     then do
@@ -126,16 +126,16 @@ play next p v = do
 playComputer :: (MonadState Board m, MonadIO m) => Player -> m ()
 playComputer p = do
   putBoard
-  (k, m) <- gets bestMove
+  mv@(k, m) <- gets bestMove
   liftIO $ printf "%s removes %d from row %d.\n" (show p) m (k + 1)
-  play playHuman p (k, m)
+  play p mv playHuman
 
 playHuman :: (MonadState Board m, MonadIO m) => Player -> m ()
 playHuman p = do
   putBoard
   liftIO $ printf "%s, enter your move:\n" (show p)
-  (k, m) <- getMove
-  play playComputer p (k, m)
+  mv <- getMove
+  play p mv playComputer
 
 main :: IO ()
 main = void $ runStateT (playHuman Bob) [5,4 .. 1]
