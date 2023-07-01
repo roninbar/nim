@@ -9,8 +9,7 @@ module Main.Trans.Accum
 
 import           Control.Monad.Accum    (MonadAccum (..))
 import           Control.Monad.Identity (Identity)
-import           Control.Monad.IO.Class (MonadIO)
-import           Control.Monad.Reader   (MonadIO (..))
+import           Control.Monad.IO.Class (MonadIO (..))
 
 newtype AccumT w m a =
   AccumT
