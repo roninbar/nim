@@ -10,15 +10,14 @@ module Main
   ( main
   ) where
 
-import           Control.Applicative       (Alternative ((<|>)))
-import           Control.Monad             (void, zipWithM_)
-import           Control.Monad.Accum       (MonadAccum (accum, add, look),
-                                            looks)
-import           Control.Monad.IO.Class    (MonadIO (liftIO))
-import           Control.Monad.Trans.Accum (runAccumT)
-import           Data.Bits                 (xor)
-import           Data.List                 (elemIndex, findIndex)
-import           Text.Printf               (printf)
+import           Control.Applicative    (Alternative ((<|>)))
+import           Control.Monad          (void, zipWithM_)
+import           Control.Monad.Accum    (MonadAccum (look, add), looks)
+import           Control.Monad.IO.Class (MonadIO (liftIO))
+import           Data.Bits              (xor)
+import           Data.List              (elemIndex, findIndex)
+import           Main.Trans.Accum       (AccumT (AccumT), execAccumT, runAccumT)
+import           Text.Printf            (printf)
 
 newtype Board =
   Board [Int]
@@ -147,4 +146,4 @@ playHuman = do
   play p mv playComputer
 
 main :: IO ()
-main = void $ accum playHuman $ Board [5,4 .. 1]
+main = void $ execAccumT playHuman $ Board [5, 4 .. 1]
