@@ -108,11 +108,9 @@ validMove (k, m) = do
   Board rows <- look
   return $ 0 <= k && k < length rows && 0 < m && m <= rows !! k
 
-applyMove :: (MonadAccum Board m, MonadAccum Board m) => Move -> m ()
+applyMove :: MonadAccum Board m => Move -> m ()
 applyMove (k, m) = add $ Board $ replicate k 0 ++ [-m] ++ repeat 0
 
---   add
--- applyMove (k, m) s = foldMap ($ s) [take k, \s -> [s !! k - m], drop (k + 1)]
 finished :: MonadAccum Board m => m Bool
 finished = looks (\(Board rows) -> all (== 0) rows)
 
@@ -131,14 +129,14 @@ play p mv next = do
       liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p)
     else next
 
-playComputer :: (MonadIO m, MonadAccum Board m) => m ()
+playComputer :: (MonadAccum Board m, MonadIO m) => m ()
 playComputer = do
   putBoard
   mv@(k, m) <- gets bestMove
   liftIO $ printf "Computer removes %d from row %d.\n" m (k + 1)
   play p mv playHuman
 
-playHuman :: (MonadIO m, MonadAccum Board m) => m ()
+playHuman :: (MonadAccum Board m, MonadIO m) => m ()
 playHuman = do
   putBoard
   liftIO $ printf "Human, enter your move:\n"
