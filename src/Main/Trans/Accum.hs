@@ -16,8 +16,14 @@ newtype AccumT w m a =
     { runAccumT :: w -> m (a, w)
     }
 
+evalAccumT :: Monad m => AccumT w m a -> w -> m a
+evalAccumT (AccumT f) = fmap fst . f
+
 execAccumT :: Monad m => AccumT w m a -> w -> m w
 execAccumT (AccumT f) = fmap snd . f
+
+mapAccumT :: (m (a, w) -> n (b, w)) -> AccumT w m a -> AccumT w n b
+mapAccumT f (AccumT g) = AccumT $ f . g
 
 type Accum w = AccumT w Identity
 
