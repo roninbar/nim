@@ -30,7 +30,6 @@ executable nim
 
   build-depends:
     , base          ^>=4.14.3.0
-    , containers
     , extra
     , mtl           >=2.3.1     && <2.4
     , transformers
