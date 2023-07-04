@@ -11,8 +11,8 @@ module Main
   ) where
 
 import           Control.Applicative    (Alternative ((<|>)))
-import           Control.Monad          (void, zipWithM_)
-import           Control.Monad.Accum    (MonadAccum (look, add), looks)
+import           Control.Monad          (void, zipWithM)
+import           Control.Monad.Accum    (MonadAccum (add, look), looks)
 import           Control.Monad.Extra    (ifM)
 import           Control.Monad.IO.Class (MonadIO (liftIO))
 import           Data.Bits              (xor)
@@ -48,12 +48,12 @@ nimSum (Board rows) = foldl xor 0 rows
 putBoard :: (MonadAccum Board m, MonadIO m) => m ()
 putBoard = do
   Board rows <- look
-  liftIO $ zipWithM_ fmt [1 ..] rows
+  liftIO $ zipWithM fmt [1 ..] rows
   s <- looks nimSum
   liftIO $ printf "\x3A3 : %04b\n" s -- '\x3A3' = uppercase sigma
   where
     fmt :: Int -> Int -> IO ()
-    fmt k n = printf "%d : %04b %s\n" k n (concat (replicate n "* "))
+    fmt k n = printf "%d : %04b %s\n" k n $ concat $ replicate n "* "
 
 getMove :: (MonadAccum Board m, MonadIO m) => m Move
 getMove = do
