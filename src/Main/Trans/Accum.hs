@@ -52,9 +52,9 @@ instance (Monad m, Monoid w) => (MonadAccum w) (AccumT w m) where
   accum :: (w -> (a, w)) -> AccumT w m a
   accum f = AccumT $ \s -> return (f s)
   add :: w -> AccumT w m ()
-  add w = AccumT $ \s -> return ((), w)
+  add = accum . const . ((), )
   look :: AccumT w m w
-  look = AccumT $ \s -> return (s, mempty)
+  look = accum (, mempty)
 
 instance (MonadIO m, Monoid w) => MonadIO (AccumT w m) where
   liftIO :: IO a -> AccumT w m a
