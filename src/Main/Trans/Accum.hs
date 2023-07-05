@@ -34,18 +34,18 @@ instance (Monad m, Monoid w) => Applicative (AccumT w m) where
   pure :: a -> AccumT w m a
   pure = accum . const . (, mempty)
   (<*>) :: AccumT w m (a -> b) -> AccumT w m a -> AccumT w m b
-  AccumT f <*> AccumT g =
-    AccumT $ \s -> do
-      (x, u) <- f s
-      (y, v) <- g (s <> u)
+  f <*> g =
+    AccumT $ \w -> do
+      (x, u) <- runAccumT f w
+      (y, v) <- runAccumT g (w <> u)
       return (x y, u <> v)
 
 instance (Monad m, Monoid w) => Monad (AccumT w m) where
   (>>=) :: AccumT w m a -> (a -> AccumT w m b) -> AccumT w m b
   f >>= g =
-    AccumT $ \s -> do
-      (x, u) <- runAccumT f s
-      (y, v) <- runAccumT (g x) (s <> u)
+    AccumT $ \w -> do
+      (x, u) <- runAccumT f w
+      (y, v) <- runAccumT (g x) (w <> u)
       return (y, u <> v)
 
 instance (Monad m, Monoid w) => (MonadAccum w) (AccumT w m) where
