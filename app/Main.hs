@@ -117,10 +117,10 @@ finished :: MonadAccum Board m => m Bool
 finished = looks (\(Board rows) -> all (== 0) rows)
 
 play ::
-     (MonadIO m, MonadAccum Board m, MonadAccum Board m)
+     (MonadAccum Board m, MonadIO m)
   => Player
   -> Move
-  -> (Player -> m ())
+  -> m ()
   -> m ()
 play p mv next = do
   applyMove mv
@@ -137,14 +137,14 @@ playComputer = do
   putBoard
   mv@(k, m) <- looks bestMove
   liftIO $ printf "Computer removes %d from row %d.\n" m (k + 1)
-  play p mv playHuman
+  play Computer mv playHuman
 
-playHuman :: (MonadIO m, MonadAccum Board m) => m ()
+playHuman :: (MonadAccum Board m, MonadIO m) => m ()
 playHuman = do
   putBoard
   liftIO $ printf "Human, enter your move:\n"
   mv <- getMove
-  play p mv playComputer
+  play Human mv playComputer
 
 main :: IO ()
 main = void $ runAccumT playHuman $ Board [5,4 .. 1]
