@@ -34,13 +34,13 @@ instance Monoid Board where
 type Move = (Int, Int)
 
 data Player
-  = Computer
-  | Human
+  = Alice
+  | Bob
   deriving (Show)
 
 opponent :: Player -> Player
-opponent Computer = Human
-opponent Human    = Computer
+opponent Alice = Bob
+opponent Bob   = Alice
 
 nimSum :: Board -> Int
 nimSum (Board rows) = foldl xor 0 rows
@@ -120,7 +120,7 @@ play ::
      (MonadAccum Board m, MonadIO m)
   => Player
   -> Move
-  -> m ()
+  -> (Player -> m ())
   -> m ()
 play p mv next = do
   applyMove mv
@@ -130,21 +130,21 @@ play p mv next = do
     (do putBoard
         liftIO $ printf "** The winner is %s! **\BEL\n" $ show (opponent p))
   -- else
-    next
+    (next (opponent p))
 
-playComputer :: (MonadAccum Board m, MonadIO m) => m ()
-playComputer = do
+playComputer :: (MonadAccum Board m, MonadIO m) => Player -> m ()
+playComputer p = do
   putBoard
   mv@(k, m) <- looks bestMove
-  liftIO $ printf "Computer removes %d from row %d.\n" m (k + 1)
-  play Computer mv playHuman
+  liftIO $ printf "%s removes %d from row %d.\n" (show p) m (k + 1)
+  play p mv playHuman
 
-playHuman :: (MonadAccum Board m, MonadIO m) => m ()
-playHuman = do
+playHuman :: (MonadAccum Board m, MonadIO m) => Player -> m ()
+playHuman p = do
   putBoard
-  liftIO $ printf "Human, enter your move:\n"
+  liftIO $ printf "%s, enter your move:\n" $ show p
   mv <- getMove
-  play Human mv playComputer
+  play p mv playComputer
 
 main :: IO ()
-main = void $ runAccumT playHuman $ Board [5,4 .. 1]
+main = void $ runAccumT (playComputer Alice) $ Board [5,4 .. 1]
